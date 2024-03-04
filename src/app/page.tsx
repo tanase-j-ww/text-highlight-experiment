@@ -1,112 +1,244 @@
-import Image from "next/image";
+"use client";
+
+import React, { useRef, useState } from "react";
+
+const initialBody = [
+  {
+    type: "header1",
+    children: [
+      {
+        color: "#000000",
+        bold: true,
+        text: "h1 tag",
+      },
+    ],
+  },
+  {
+    type: "paragraph",
+    children: [
+      {
+        color: "#000000",
+        bold: false,
+        text: "p tag",
+      },
+    ],
+  },
+  {
+    type: "paragraph",
+    children: [
+      {
+        color: "#000000",
+        bold: false,
+        text: "A line of text in a paragraph.",
+      },
+    ],
+  },
+  {
+    type: "paragraph",
+    children: [
+      {
+        color: "#000000",
+        bold: false,
+        text: "This is repository for text ",
+      },
+      {
+        color: "#ff0000",
+        bold: true,
+        text: "highlight ",
+      },
+      {
+        color: "#000000",
+        bold: false,
+        text: "experiment.",
+      },
+    ],
+  },
+];
 
 export default function Home() {
+  const [body, setBody] = useState(initialBody);
+
+  const handleEditTextBold = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const selection = document.getSelection();
+    if (!selection) return;
+    const firstRange = selection.getRangeAt(0);
+    const lastRange = selection.getRangeAt(selection.rangeCount - 1);
+    const startContainer = firstRange.startContainer;
+    const endContainer = lastRange.endContainer;
+    const isSameNode = firstRange.startContainer === lastRange.endContainer;
+    const isSameOffset = firstRange.startOffset === lastRange.endOffset;
+    const startOffset = firstRange.startOffset;
+    const endOffset = lastRange.endOffset;
+    const startElementId = startContainer.parentElement?.id;
+    const endElementId = endContainer.parentElement?.id;
+    console.log(":", firstRange);
+    if (isSameNode && isSameOffset) return;
+    if (!startElementId) return;
+    const startParentIndex = Number(startElementId.split("-")[1]);
+    const startChildIndex = Number(startElementId.split("-")[2]);
+    const isBold = body[startParentIndex].children[startChildIndex].bold;
+    // 選択したコンテンツが異なるstyleとまたがっていない場合
+    if (isSameNode) {
+      setBody((b) =>
+        b.map((bd, index) => {
+          if (index !== startParentIndex) return bd;
+          const newChildren = bd.children;
+          const editChild = newChildren[startChildIndex];
+          const prevText = editChild.text;
+          const forwardChild = {
+            ...editChild,
+            text: prevText.slice(0, startOffset),
+          };
+          const middleChild = {
+            ...editChild,
+            text: prevText.slice(startOffset, endOffset),
+            bold: !isBold,
+          };
+          const backwardChild = {
+            ...editChild,
+            text: prevText.slice(endOffset),
+          };
+          newChildren.splice(
+            startChildIndex,
+            1,
+            forwardChild,
+            middleChild,
+            backwardChild,
+          );
+          return {
+            ...bd,
+            children: newChildren,
+          };
+        }),
+      );
+    } else {
+      // コンテンツのスタイルがまたがっている場合
+      if (!endElementId) return;
+      const endParentIndex = Number(endElementId.split("-")[1]);
+      const endChildIndex = Number(endElementId.split("-")[2]);
+      setBody((b) =>
+        b.map((bd, index) => {
+          // FIXME: 正しくindexが取れてない
+          // if (startParentIndex === endParentIndex) {
+          //   const newChildren = bd.children;
+          //   const editChild = newChildren[startChildIndex];
+          //   const prevText = editChild.text;
+          //   const forwardChild = {
+          //     ...editChild,
+          //     text: prevText.slice(0, startOffset),
+          //   };
+          //   const backwardChild = {
+          //     ...editChild,
+          //     text: prevText.slice(startOffset),
+          //     bold: !isBold,
+          //   };
+          //   newChildren.splice(startChildIndex, 1, forwardChild, backwardChild);
+          //   return {
+          //     ...bd,
+          //     children: newChildren,
+          //   };
+          // } else {
+          if (index === startParentIndex) {
+            const newChildren = bd.children;
+            const editChild = newChildren[startChildIndex];
+            const prevText = editChild.text;
+            const forwardChild = {
+              ...editChild,
+              text: prevText.slice(0, startOffset),
+            };
+            const backwardChild = {
+              ...editChild,
+              text: prevText.slice(startOffset),
+              bold: !isBold,
+            };
+            newChildren.splice(startChildIndex, 1, forwardChild, backwardChild);
+            return {
+              ...bd,
+              children: newChildren.map((child, cIndex) =>
+                cIndex >= startChildIndex ? { ...child, bold: !isBold } : child,
+              ),
+            };
+          } else if (index > startParentIndex && index < endParentIndex) {
+            return {
+              ...bd,
+              children: bd.children.map((child) => {
+                return { ...child, bold: !isBold };
+              }),
+            };
+          } else if (index === endParentIndex) {
+            const newChildren = bd.children;
+            const editChild = newChildren[endChildIndex];
+            const prevText = editChild.text;
+            const forwardChild = {
+              ...editChild,
+              text: prevText.slice(0, endOffset),
+              bold: !isBold,
+            };
+            const backwardChild = {
+              ...editChild,
+              text: prevText.slice(endOffset),
+            };
+            newChildren.splice(endChildIndex, 1, forwardChild, backwardChild);
+            return {
+              ...bd,
+              children: newChildren.map((child, cIndex) =>
+                cIndex <= endChildIndex ? { ...child, bold: !isBold } : child,
+              ),
+            };
+          }
+          return bd;
+          // }
+        }),
+      );
+    }
+  };
+
+  const handleEditTextColor = () => {};
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+    <main className="flex min-h-screen flex-col items-center gap-2 p-24">
+      <div className="flex flex-row items-center">
+        <button className="font-bold" onClick={handleEditTextBold}>
+          bold
+        </button>
+        <input type="color" name="" id="" onChange={handleEditTextColor} />
       </div>
-
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+      <div>
+        {body.map((body, index) => {
+          switch (body.type) {
+            case "header1": {
+              return (
+                <h1 key={index} id={`${body.type}-${index}`}>
+                  {body.children.map((child) => child.text)}
+                </h1>
+              );
+            }
+            case "paragraph": {
+              return (
+                <p key={index} id={`${body.type}-${index}`}>
+                  {body.children.map((child, childIndex) => (
+                    <span
+                      key={childIndex}
+                      id={`${body.type}-${index}-${childIndex}`}
+                      style={{
+                        fontWeight: child.bold ? "bold" : "normal",
+                        color: child.color,
+                      }}
+                    >
+                      {child.text}
+                    </span>
+                  ))}
+                </p>
+              );
+            }
+            default: {
+              return (
+                <p key={index}>{body.children.map((child) => child.text)}</p>
+              );
+            }
+          }
+        })}
       </div>
     </main>
   );
